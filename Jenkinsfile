@@ -46,7 +46,7 @@ pipeline {
                     bat '''
                     aws ecs update-service ^
                     --cluster cluster-3 ^
-                    --service my-task-service-dg3mo3g7 ^
+                    --service pickle-app-service-za6kskez ^
                     --force-new-deployment ^
                     --region ap-south-2
                     '''
