@@ -1,23 +1,35 @@
 version: 0.2
 
+env:
+  variables:
+    AWS_DEFAULT_REGION: ap-south-2
+    IMAGE_REPO_NAME: pickle-app
+    IMAGE_TAG: latest
+    CONTAINER_NAME: container-3   # 👈 must match ECS task definition
+
 phases:
-  install:
-    runtime-versions:
-      nodejs: 20
+  pre_build:
     commands:
-      - echo Installing dependencies...
-      - npm install
+      - echo Logging in to Amazon ECR...
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - REPO_URI=$ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPO_URI
 
   build:
     commands:
-      - echo Building Vite React app...
-      - npm run build
+      - echo Building Docker image...
+      - docker build -t $IMAGE_REPO_NAME .
+      - docker tag $IMAGE_REPO_NAME:latest $REPO_URI:$IMAGE_TAG
 
   post_build:
     commands:
-      - echo Build completed successfully
+      - echo Pushing Docker image...
+      - docker push $REPO_URI:$IMAGE_TAG
+
+      # 🔥 THIS IS THE IMPORTANT PART
+      - echo Creating imagedefinitions.json...
+      - printf '[{"name":"%s","imageUri":"%s"}]' $CONTAINER_NAME $REPO_URI:$IMAGE_TAG > imagedefinitions.json
 
 artifacts:
   files:
-    - '**/*'
-  base-directory: dist
+    - imagedefinitions.json
